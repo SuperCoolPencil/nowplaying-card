@@ -1773,10 +1773,6 @@ const MediaCard = GObject.registerClass({
 
         // The same bars as the panel icon, dimmed: with several cards open it
         // shows which one is making the noise, without another label.
-        this._equalizer = new EqualizerIcon();
-        this._equalizer.add_style_class_name('np-card-equalizer');
-        this._equalizer.x_align = Clutter.ActorAlign.END;
-        this._headerRow.add_child(this._equalizer);
 
         this._seekBox = new St.BoxLayout({
             style_class: 'np-seek-box',
@@ -1980,16 +1976,6 @@ const MediaCard = GObject.registerClass({
         // Popup text stays still; long labels use their end ellipsis.
         this._title.scroll = false;
         this._subtitle.scroll = false;
-
-        // No room for columns here, so these bars follow the sound instead.
-        this._equalizer.visible = !compact;
-        this._equalizer.animate = options.animate;
-        this._equalizer.frameRate = options.frameRate;
-        this._equalizer.iconStyle = options.equalizerStyle;
-        this._equalizer.accent = options.equalizerAccent;
-        this._equalizer.analyzer = options.analyzer;
-        this._equalizer.range = options.spectrumRange;
-        this._equalizer.playing = this.playing;
 
         const controlSize = compact
             ? COMPACT_CONTROL_ICON_SIZE : CONTROL_ICON_SIZE;
