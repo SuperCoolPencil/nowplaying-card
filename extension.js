@@ -171,8 +171,8 @@ const DEFAULTS = {
     'frame-rate': 30,
     'equalizer-style': 'rounded',
     'equalizer-accent': false,
-    'show-spectrum': false,
-    'spectrum-shape': 'segments',
+    'show-spectrum': true,
+    'spectrum-shape': 'waves',
     'spectrum-rounded': false,
     'spectrum-colors': 'classic',
     'spectrum-columns': 16,
@@ -192,13 +192,13 @@ const DEFAULTS = {
     'volume-step': 5,
     'panel-middle-click': 'play-pause',
     'panel-right-click': 'menu',
-    'panel-controls': false,
-    'panel-controls-shown': 'all',
-    'panel-text': 'none',
+    'panel-controls': true,
+    'panel-controls-shown': 'play-next',
+    'panel-text': 'title-artist',
     'panel-text-width': 180,
     'panel-text-fixed': false,
     'panel-icon': true,
-    'panel-app-icon': false,
+    'panel-app-icon': true,
     'ignored-players': [],
 };
 
@@ -3671,7 +3671,6 @@ class NowPlayingButton extends PanelMenu.Button {
             y_align: Clutter.ActorAlign.CENTER,
         });
         box.add_child(this._appIcon);
-        box.add_child(this._model.equalizer);
         this.add_child(center);
 
         // The track can be read straight from the panel, cut to the width the
@@ -3687,6 +3686,7 @@ class NowPlayingButton extends PanelMenu.Button {
             y_align: Clutter.ActorAlign.CENTER,
         });
         box.add_child(this._controls);
+        box.add_child(this._model.equalizer);
 
         this._prevButton = this._addPanelControl('media-seek-backward-symbolic',
             () => this._model.previous(), -PRESS_NUDGE);
@@ -3948,9 +3948,10 @@ class NowPlayingButton extends PanelMenu.Button {
         this._playButton.child.icon_name = player.status === 'Playing'
             ? 'media-playback-pause-symbolic'
             : 'media-playback-start-symbolic';
-        const all = readSetting(this._settings, 'panel-controls-shown') === 'all';
+        const controls = readSetting(this._settings, 'panel-controls-shown');
+        const all = controls === 'all';
         this._prevButton.visible = all && player.canGoPrevious;
-        this._nextButton.visible = all && player.canGoNext;
+        this._nextButton.visible = (all || controls === 'play-next') && player.canGoNext;
     }
 
     // The spectrum's own choice of text, or null when the Panel page decides.
@@ -3971,6 +3972,8 @@ class NowPlayingButton extends PanelMenu.Button {
             text = title;
         else if (mode === 'artist-title')
             text = [artists, title].filter(part => part).join(' - ');
+        else if (mode === 'title-artist')
+            text = [title, artists].filter(part => part).join(' - ');
 
         this._panelLabel.text = text;
         this._panelLabel.maxWidth = readSetting(this._settings, 'panel-text-width');
@@ -3979,8 +3982,10 @@ class NowPlayingButton extends PanelMenu.Button {
     }
 
     _syncAppIcon() {
-        const app = this._model.activePlayer?.app;
-        this._appIcon.gicon = app?.get_icon() ?? null;
+        const player = this._model.activePlayer;
+        this._appIcon.gicon = player
+            ? player.app?.get_icon() ?? new Gio.ThemedIcon({name: 'audio-x-generic-symbolic'})
+            : null;
         this._appIcon.visible = readSetting(this._settings, 'panel-app-icon') &&
             !!this._appIcon.gicon;
     }

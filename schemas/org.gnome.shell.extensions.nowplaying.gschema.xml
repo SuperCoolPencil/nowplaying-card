@@ -38,6 +38,7 @@
   <enum id="org.gnome.shell.extensions.nowplaying.panel-controls-shown">
     <value value="0" nick="all"/>
     <value value="1" nick="play"/>
+    <value value="2" nick="play-next"/>
   </enum>
   <enum id="org.gnome.shell.extensions.nowplaying.equalizer-style">
     <value value="0" nick="bars"/>
@@ -66,11 +67,13 @@
     <value value="0" nick="none"/>
     <value value="1" nick="title"/>
     <value value="2" nick="artist-title"/>
+    <value value="3" nick="title-artist"/>
   </enum>
   <enum id="org.gnome.shell.extensions.nowplaying.spectrum-text">
     <value value="0" nick="panel"/>
     <value value="1" nick="title"/>
     <value value="2" nick="artist-title"/>
+    <value value="3" nick="title-artist"/>
   </enum>
   <schema id="org.gnome.shell.extensions.nowplaying"
           path="/org/gnome/shell/extensions/nowplaying/">
@@ -111,14 +114,14 @@
       <description>Keep the full width even for a short track, so nothing next to the text moves between songs.</description>
     </key>
     <key name="panel-controls" type="b">
-      <default>false</default>
+      <default>true</default>
       <summary>Show the controls in the panel</summary>
       <description>Put the transport next to the icon, so a track can be changed without opening the card.</description>
     </key>
     <key name="panel-controls-shown" enum="org.gnome.shell.extensions.nowplaying.panel-controls-shown">
-      <default>'all'</default>
+      <default>'play-next'</default>
       <summary>Which controls the panel shows</summary>
-      <description>Previous, play and next, or play and pause alone.</description>
+      <description>Previous, play and next; play and pause alone; or play/pause and next.</description>
     </key>
     <key name="max-cards" type="i">
       <default>3</default>
@@ -147,12 +150,12 @@
       <description>How often the moving icon is drawn. Every frame costs the shell a frame of the whole screen, so fewer cost less.</description>
     </key>
     <key name="show-spectrum" type="b">
-      <default>false</default>
+      <default>true</default>
       <summary>Show the spectrum analyzer</summary>
       <description>Columns that follow the sound take the place of the bars in the top bar, and the bars on the card follow the sound too. It only listens while the icon is animated. Turned off, the bars come back in their own style.</description>
     </key>
     <key name="spectrum-shape" enum="org.gnome.shell.extensions.nowplaying.spectrum-shape">
-      <default>'segments'</default>
+      <default>'waves'</default>
       <summary>Spectrum shape</summary>
       <description>Columns of separate segments, solid columns, solid columns that grow both ways from the middle, the hills of the icon rising with the sound, or the same hills folded over a line through the middle.</description>
     </key>
@@ -247,7 +250,7 @@
       <description>The menu that picks when the button shows, play or pause, the next track, or nothing. The menu still opens from the keyboard.</description>
     </key>
     <key name="panel-text" enum="org.gnome.shell.extensions.nowplaying.panel-text">
-      <default>'none'</default>
+      <default>'title-artist'</default>
       <summary>Track shown in the panel</summary>
       <description>Show the title, the artist and the title, or nothing but the icon.</description>
     </key>
@@ -263,7 +266,7 @@
       <description>When off, only the track is shown. The icon still appears when there is no text.</description>
     </key>
     <key name="panel-app-icon" type="b">
-      <default>false</default>
+      <default>true</default>
       <summary>Show the player icon in the panel</summary>
       <description>Put the icon of the app that is playing next to the equalizer. With the panel icon off it takes the equalizer's place.</description>
     </key>

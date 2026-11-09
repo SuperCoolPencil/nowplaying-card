@@ -29,7 +29,7 @@ gsettings set org.gnome.shell disabled-extensions "[]"
 gsettings set org.gnome.shell disable-user-extensions false
 gsettings set org.gnome.desktop.interface enable-animations true
 schema="$XDG_DATA_HOME/gnome-shell/extensions/nowplaying@epogonii.github.io/schemas"
-gsettings --schemadir "$schema" set org.gnome.shell.extensions.nowplaying panel-text artist-title
+gsettings --schemadir "$schema" set org.gnome.shell.extensions.nowplaying panel-text title-artist
 gsettings --schemadir "$schema" set org.gnome.shell.extensions.nowplaying scroll-text true
 gjs "$NP_SOURCE/tools/nested/mprisstub5.js" ticker none 'Ticker Preview' yes yes \
     'Scott Street From The Album Stranger In The Alps Deluxe Edition' \

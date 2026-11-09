@@ -177,6 +177,8 @@ microphone indicator shows while the analyzer listens.
 
 ## Preferences
 
+This fork defaults to player icon → title - artist → play/pause → next → waves.
+
 `gnome-extensions prefs nowplaying@epogonii.github.io`
 
 Four pages, in the order the window shows them.
@@ -223,7 +225,7 @@ on. With no player at all, the icon is only there with Visibility set to always.
 | Location | Own panel button, or embedded in Quick Settings |
 | Panel area / Position | Where the button sits, panel mode only |
 | Visibility | Always, only while a player is running, or never; in Quick Settings mode never still leaves the card there |
-| Track in the panel | Nothing, title, or artist and title next to the icon |
+| Track in the panel | Nothing, title, artist - title, or title - artist |
 | Text width | Longest the panel text may get, in pixels |
 | Fixed text width | Keep that width even for a short track |
 | Icon in the panel | The equalizer next to the text, or the text alone |
@@ -231,7 +233,7 @@ on. With no player at all, the icon is only there with Visibility set to always.
 | Scrolling over the button | Nothing, switch tracks, or change volume |
 | Volume step | How many percent one notch of the wheel changes the volume by |
 | Controls in the panel | Transport buttons next to the icon |
-| Controls shown | Previous, play and next, or play and pause only |
+| Controls shown | Previous/play/next, play/pause only, or play/pause and next |
 | Middle click | Nothing, play or pause, or next track |
 | Right click | The menu, play or pause, next track, or nothing; the menu still opens from the keyboard |
 

@@ -11,17 +11,17 @@ import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Ex
 
 const LOCATIONS = ['panel', 'quick-settings'];
 const PANEL_BOXES = ['left', 'center', 'right'];
-const PANEL_TEXTS = ['none', 'title', 'artist-title'];
+const PANEL_TEXTS = ['none', 'title', 'artist-title', 'title-artist'];
 const PANEL_SCROLLS = ['none', 'track', 'volume'];
 const MIDDLE_CLICKS = ['none', 'play-pause', 'next'];
 const RIGHT_CLICKS = ['menu', 'play-pause', 'next', 'none'];
-const CONTROLS_SHOWN = ['all', 'play'];
+const CONTROLS_SHOWN = ['all', 'play', 'play-next'];
 const CARD_LAYOUTS = ['auto', 'full', 'compact'];
 const COVER_SIZES = ['small', 'medium', 'large'];
 const EQUALIZER_STYLES = ['bars', 'rounded', 'rainbow'];
 const SPECTRUM_SHAPES = ['segments', 'solid', 'mirrored', 'waves', 'ribbon'];
 const SPECTRUM_COLORS = ['plain', 'classic', 'level', 'rainbow'];
-const SPECTRUM_TEXTS = ['panel', 'title', 'artist-title'];
+const SPECTRUM_TEXTS = ['panel', 'title', 'artist-title', 'title-artist'];
 
 const PROJECT_URL = 'https://github.com/epogonii/nowplaying-card';
 const ISSUES_URL = 'https://github.com/epogonii/nowplaying-card/issues';
@@ -144,7 +144,7 @@ export default class NowPlayingPreferences extends ExtensionPreferences {
             title: _('Track in the panel'),
             subtitle: _('Text shown next to the icon'),
             model: new Gtk.StringList({
-                strings: [_('Nothing'), _('Title'), _('Artist and title')],
+                strings: [_('Nothing'), _('Title'), _('Artist and title'), _('Title and artist')],
             }),
         });
         panel.add(textRow);
@@ -208,7 +208,7 @@ export default class NowPlayingPreferences extends ExtensionPreferences {
         const controlsShownRow = new Adw.ComboRow({
             title: _('Controls shown'),
             model: new Gtk.StringList({
-                strings: [_('Previous, play and next'), _('Play and pause only')],
+                strings: [_('Previous, play and next'), _('Play and pause only'), _('Play/pause and next')],
             }),
         });
         panel.add(controlsShownRow);
@@ -423,7 +423,7 @@ export default class NowPlayingPreferences extends ExtensionPreferences {
         const spectrumTextRow = new Adw.ComboRow({
             title: _('Track next to the spectrum'),
             model: new Gtk.StringList({
-                strings: [_('Same as the panel'), _('Title'), _('Artist and title')],
+                strings: [_('Same as the panel'), _('Title'), _('Artist and title'), _('Title and artist')],
             }),
         });
         spectrum.add(spectrumTextRow);
