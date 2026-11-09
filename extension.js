@@ -150,8 +150,7 @@ const LOOP_ORDER = ['None', 'Playlist', 'Track'];
 const SCROLL_NOTCH = 1;
 
 const TEXT_SCROLL_SPEED = 30;
-const TEXT_SCROLL_PAUSE_MS = 1600;
-const TEXT_SCROLL_RETURN_MS = 500;
+const TEXT_SCROLL_GAP = 40;
 const PRESS_DIP_MS = 90;
 const PRESS_RETURN_MS = 240;
 const PRESS_SCALE = 0.92;
@@ -1322,7 +1321,7 @@ class SpectrumAnalyzer {
     }
 }
 
-// A label that walks its own text sideways when it does not fit, instead of
+// A label that loops its text leftward like a ticker when it does not fit, instead of
 // cutting it off. The width request stays at the minimum the theme allows, so
 // a long track title can never widen the card.
 const ScrollingLabel = GObject.registerClass(
@@ -1339,6 +1338,10 @@ class ScrollingLabel extends St.Widget {
         this._label.clutter_text.single_line_mode = true;
         this._label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         this.add_child(this._label);
+        this._copy = new St.Label({style_class: styleClass, visible: false});
+        this._copy.clutter_text.single_line_mode = true;
+        this._copy.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+        this.add_child(this._copy);
 
         this._scroll = true;
         this._maxWidth = 0;
@@ -1347,7 +1350,7 @@ class ScrollingLabel extends St.Widget {
         this._idleId = null;
         this._timeline = null;
         this._frameId = 0;
-        this._away = 0;
+        this._distance = 0;
         this._walkText = null;
 
         this.connect('notify::mapped', () => this._restart());
@@ -1361,7 +1364,11 @@ class ScrollingLabel extends St.Widget {
     }
 
     set text(text) {
+        if (this._label.text === text)
+            return;
         this._label.text = text;
+        this._copy.text = text;
+        this._queueRestart();
     }
 
     get text() {
@@ -1442,8 +1449,21 @@ class ScrollingLabel extends St.Widget {
             y2: height,
         }));
 
-        if (overflow !== this._overflow) {
+        const distance = overflow > 0
+            ? width + overflow + TEXT_SCROLL_GAP * scaleFactor() : 0;
+        this._copy.visible = overflow >= 2;
+        if (this._copy.visible) {
+            this._copy.allocate(new Clutter.ActorBox({
+                x1: distance,
+                y1: 0,
+                x2: distance + width + overflow,
+                y2: height,
+            }));
+        }
+
+        if (overflow !== this._overflow || distance !== this._distance) {
             this._overflow = overflow;
+            this._distance = distance;
             this._queueRestart();
         }
     }
@@ -1461,30 +1481,21 @@ class ScrollingLabel extends St.Widget {
     }
 
     _restart() {
-        // How far along the walk was. A card changes width whenever a cover
-        // arrives or a neighbour of it folds, and every one of those is a new
-        // amount of text that does not fit; starting the walk over each time
-        // would leave a title in a busy popup standing at its first word for
-        // good.
-        // A new title starts from the beginning: the pause at the start is
-        // there to be read, and the time carried over belongs to text that is
-        // no longer on screen.
+        // Keep the same text moving through relayouts; a new track starts
+        // at its first word. Both copies share an offset so wrapping is seamless.
         const same = this._label.text === this._walkText;
         const carried = same ? this._timeline?.get_elapsed_time() ?? 0 : 0;
         this._walkText = this._label.text;
 
         this._stopWalk();
         this._label.translation_x = 0;
+        this._copy.translation_x = 0;
 
-        // With animations turned off the text stays where it is and keeps its
-        // ellipsis.
         if (!this._canScroll())
             return;
 
-        this._away = Math.max(1, Math.round(
-            (this._overflow / (TEXT_SCROLL_SPEED * scaleFactor())) * 1000));
-        const duration = 2 * TEXT_SCROLL_PAUSE_MS + this._away +
-            TEXT_SCROLL_RETURN_MS;
+        const duration = Math.max(1, Math.round(
+            this._distance / (TEXT_SCROLL_SPEED * scaleFactor()) * 1000));
         this._timeline = new Clutter.Timeline({
             actor: this,
             duration,
@@ -1494,7 +1505,7 @@ class ScrollingLabel extends St.Widget {
             () => this._onFrame());
         this._timeline.start();
         if (carried > 0)
-            this._timeline.advance(Math.min(carried, duration - 1));
+            this._timeline.advance(carried % duration);
         this._onFrame();
     }
 
@@ -1503,31 +1514,12 @@ class ScrollingLabel extends St.Widget {
             St.Settings.get().enable_animations;
     }
 
-    // One walk: a pause at the start, out to the far end at a steady speed,
-    // a pause there, and back with the last of it easing off. The frame clock
-    // of the actor drives it, so the walk cannot be left parked halfway - a
-    // chain of eases could, because a shell that decides not to animate
-    // finishes an ease inside the call that starts it, and the leg after that
-    // one never came.
+    // The second copy follows the first by one full text width and a gap.
+    // At the end of a cycle it occupies the first copy's starting position.
     _onFrame() {
-        const elapsed = this._timeline.get_elapsed_time();
-        const there = TEXT_SCROLL_PAUSE_MS + this._away;
-        const backFrom = there + TEXT_SCROLL_PAUSE_MS;
-        let out;
-
-        if (elapsed <= TEXT_SCROLL_PAUSE_MS) {
-            out = 0;
-        } else if (elapsed <= there) {
-            out = (elapsed - TEXT_SCROLL_PAUSE_MS) / this._away;
-        } else if (elapsed <= backFrom) {
-            out = 1;
-        } else {
-            const left = Math.min(1,
-                (elapsed - backFrom) / TEXT_SCROLL_RETURN_MS);
-            out = (1 - left) * (1 - left);
-        }
-
-        this._label.translation_x = -Math.round(this._overflow * out);
+        const offset = -this._distance * this._timeline.get_progress();
+        this._label.translation_x = offset;
+        this._copy.translation_x = offset;
     }
 
     _stopWalk() {
