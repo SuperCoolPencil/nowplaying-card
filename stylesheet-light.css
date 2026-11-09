@@ -269,6 +269,11 @@
     color: rgba(0, 0, 0, 0.35); /* np-var: faint */
 }
 
+/* The popup's cover clip, with corners sized for a 16px thumbnail. */
+.np-panel-thumbnail {
+    border-radius: 3px;
+}
+
 .np-panel-box {
     spacing: 4px;
 }

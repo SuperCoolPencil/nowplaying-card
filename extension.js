@@ -3704,9 +3704,13 @@ class NowPlayingButton extends PanelMenu.Button {
         center.add_child(box);
 
         this._appIcon = new St.Icon({
+            style_class: 'np-panel-thumbnail',
             icon_size: PANEL_APP_ICON_SIZE,
             y_align: Clutter.ActorAlign.CENTER,
         });
+        this._thumbnailClip = new CoverClip();
+        this._thumbnailClip.set_enabled(false);
+        this._appIcon.add_effect(this._thumbnailClip);
         box.add_child(this._appIcon);
         this.add_child(center);
 
@@ -4023,6 +4027,7 @@ class NowPlayingButton extends PanelMenu.Button {
         const player = this._model.activePlayer;
         const card = this._model.stack._cards.get(player);
         const artwork = card?._hasArtwork ? card._artwork?.gicon : null;
+        this._thumbnailClip.set_enabled(!!artwork);
         this._appIcon.gicon = artwork ?? (player
             ? player.app?.get_icon() ?? new Gio.ThemedIcon({name: 'audio-x-generic-symbolic'})
             : null);
