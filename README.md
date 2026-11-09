@@ -177,10 +177,10 @@ microphone indicator shows while the analyzer listens.
 
 ## Preferences
 
-This fork defaults to media thumbnail → title - artist → play/pause → next → waves.
+This fork defaults to media thumbnail → title - artist → play/pause → next → ribbon.
 The top-bar thumbnail falls back to the player icon when artwork is unavailable.
-The ticker, transport buttons and waves take their color from the current track’s
-artwork thumbnail, adjusted for readability. Missing or neutral artwork uses the
+Only the wave/ribbon takes its color from the current track’s artwork thumbnail,
+adjusted for readability. Text and transport buttons use the panel theme. Missing or neutral artwork uses the
 panel theme’s color.
 
 `gnome-extensions prefs nowplaying@epogonii.github.io`
@@ -321,3 +321,22 @@ dpkg-deb -x .dev/packages/mutter-dev-bin_*.deb .dev/helper
 
 Use `bash tools/install-local.sh` when ready to install the changes into the
 regular desktop. That desktop still needs a new shell session to load new code.
+
+### LegionAura Music Sync
+
+Select **Ribbon** under spectrum Shape, then select **Music Sync** and **Apply**
+in the customized LegionAura build. The extension publishes four left-to-right
+samples of the ribbon’s geometry, animation phase and gradient over the local
+session bus. With artwork, the ribbon uses a horizontal thumbnail-color gradient;
+the keyboard receives that same gradient with brightness from the ribbon’s shape.
+Text and transport buttons keep their normal theme color.
+
+The interface `org.gnome.Shell.Extensions.NowPlayingCard` at
+`/org/gnome/Shell/Extensions/NowPlayingCard` provides `GetFrame()` and a `Frame`
+signal, both carrying JSON: `{version: 1, active: boolean, rgb: [[r,g,b], ...]}`.
+There are exactly four RGB zones. Paused, hidden, or non-ribbon states are inactive.
+LegionAura blanks stale frames after one second and reconnects automatically.
+Frames contain colors only; audio samples are never sent or saved.
+
+Run `gjs tools/ribbon-smoke.js` and `gjs tools/artwork-color-smoke.js` from this
+repository’s root for geometry, palette and thumbnail checks.

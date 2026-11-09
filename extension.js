@@ -172,7 +172,7 @@ const DEFAULTS = {
     'equalizer-style': 'rounded',
     'equalizer-accent': false,
     'show-spectrum': true,
-    'spectrum-shape': 'waves',
+    'spectrum-shape': 'ribbon',
     'spectrum-rounded': false,
     'spectrum-colors': 'classic',
     'spectrum-columns': 16,
@@ -601,6 +601,7 @@ class EqualizerIcon extends St.DrawingArea {
                 this._settle(now);
         }
         this.queue_repaint();
+        this.notifyRibbonFrame?.();
 
         // Flat with nothing playing: stop the clock until a sound comes.
         if (this._timerId && !this._playing &&
@@ -1014,23 +1015,13 @@ class EqualizerIcon extends St.DrawingArea {
         const [width] = this.get_surface_size();
         const middle = height / 2;
         const alpha = color.alpha / 255;
-        const count = this._levels.length;
         const narrow = x => Math.max(0, Math.sin(Math.PI * x / width)) ** 0.9;
         const ink = this._ribbonInk(color, lightInk, width, height);
         const lifts = this._waveLifts();
 
-        WAVES.forEach(([rest, , humps, start, reach, turns], k) => {
-            const shift = -2 * Math.PI * turns * this._drift / WAVE_LOOP_S;
-            const lobe = x => Math.abs(Math.sin(Math.PI * humps * x / height + start + shift));
-            // Low notes in the middle, where there is the most room.
-            const lift = i => {
-                const far = Math.abs(2 * i + 1 - count);
-                return Math.max(lifts[k][Math.max(far - 1, 0)], lifts[k][Math.min(far, count - 1)]);
-            };
-            const half = (x, i) => middle * narrow(x) * Math.min(1,
-                RIBBON_REST * rest * (RIBBON_PINCH + (1 - RIBBON_PINCH) * lobe(x) ** 1.3) +
-                RIBBON_REACH * reach * lift(i) * (RIBBON_SWAY + (1 - RIBBON_SWAY) * lobe(x)));
-            const top = this._wavePoints(width, (x, i) => middle - half(x, i));
+        WAVES.forEach((_, k) => {
+            const top = this._wavePoints(width, (x, i) => middle -
+                this._ribbonHalf(width, height, lifts, k, x, i));
             const bottom = top.map(([x, y]) => [x, height - y]).reverse();
 
             cr.save();
@@ -1055,33 +1046,92 @@ class EqualizerIcon extends St.DrawingArea {
         cr.restore();
     }
 
-    _ribbonInk(color, lightInk, width, height) {
-        if (this._colors === 'rainbow') {
-            const hue = this._hue;
-            const ink = new Cairo.LinearGradient(0, 0, width, 0);
-            for (let n = 0; n <= 8; n++) {
-                ink.addColorStopRGB(n / 8,
-                    ...hsvToRgb(hue + n / 8, HUE_SATURATION, lightInk ? 1 : 0.8));
-            }
-            return ink;
-        }
+    _ribbonHalf(width, height, lifts, k, x, i) {
+        const count = this._levels.length;
+        const [rest, , humps, start, reach, turns] = WAVES[k];
+        const shift = -2 * Math.PI * turns * this._drift / WAVE_LOOP_S;
+        const lobe = Math.abs(Math.sin(Math.PI * humps * x / height + start + shift));
+        const far = Math.abs(2 * i + 1 - count);
+        const lift = Math.max(lifts[k][Math.max(far - 1, 0)], lifts[k][Math.min(far, count - 1)]);
+        const narrow = Math.max(0, Math.sin(Math.PI * x / width)) ** 0.9;
+        return height / 2 * narrow * Math.min(1,
+            RIBBON_REST * rest * (RIBBON_PINCH + (1 - RIBBON_PINCH) * lobe ** 1.3) +
+            RIBBON_REACH * reach * lift * (RIBBON_SWAY + (1 - RIBBON_SWAY) * lobe));
+    }
 
+    _ribbonGradient(color, lightInk) {
+        if (this._artworkColor) {
+            const base = this._artworkColor;
+            return {axis: 'x', stops: [
+                [0, base.map(value => value * 0.65)],
+                [0.35, base],
+                [0.65, base.map(value => value + (1 - value) * 0.3)],
+                [1, base.map(value => value * 0.65)],
+            ]};
+        }
+        if (this._colors === 'rainbow') {
+            return {axis: 'x', stops: Array.from({length: 9}, (_, n) => [n / 8,
+                hsvToRgb(this._hue + n / 8, HUE_SATURATION, lightInk ? 1 : 0.8)])};
+        }
         const theme = [color.red / 255, color.green / 255, color.blue / 255];
         const [green, yellow, red] = LEVEL_COLORS[lightInk ? 0 : 1];
-        const stops = {
+        const zones = {
             classic: [[0, theme], [RED_FROM, red]],
             level: [[0, green], [YELLOW_FROM, yellow], [RED_FROM, red]],
         }[this._colors] ?? [[0, theme]];
-        // The zones of the columns, from the middle out.
-        const ink = new Cairo.LinearGradient(0, 0, 0, height);
-        stops.forEach(([from, rgb], j) => {
-            const to = j + 1 < stops.length ? stops[j + 1][0] - 0.1 : 1;
+        const stops = [];
+        zones.forEach(([from, rgb], j) => {
+            const to = j + 1 < zones.length ? zones[j + 1][0] - 0.1 : 1;
             for (const edge of [from, to]) {
-                ink.addColorStopRGB((1 - edge) / 2, ...rgb);
-                ink.addColorStopRGB((1 + edge) / 2, ...rgb);
+                stops.push([(1 - edge) / 2, rgb], [(1 + edge) / 2, rgb]);
             }
         });
+        return {axis: 'y', stops: stops.sort((a, b) => a[0] - b[0])};
+    }
+
+    _ribbonInk(color, lightInk, width, height) {
+        const {axis, stops} = this._ribbonGradient(color, lightInk);
+        const ink = new Cairo.LinearGradient(0, 0, axis === 'x' ? width : 0,
+            axis === 'y' ? height : 0);
+        stops.forEach(([position, rgb]) => ink.addColorStopRGB(position, ...rgb));
         return ink;
+    }
+
+    ribbonFrame() {
+        const active = this.mapped && this._playing && this._animated &&
+            this._iconStyle === 'spectrum' && this._shape === 'ribbon';
+        const rgb = Array.from({length: 4}, () => [0, 0, 0]);
+        if (!active || this.width <= 0 || this.height <= 0)
+            return {version: 1, active: false, rgb};
+        const color = this.get_theme_node().get_foreground_color();
+        const text = this.get_parent().get_theme_node().get_foreground_color();
+        const lightInk = (text.red + text.green + text.blue) / 3 > 127;
+        const {axis, stops} = this._ribbonGradient(color, lightInk);
+        const lifts = this._waveLifts();
+        // Average a small grid in each quarter of the same ribbon geometry.
+        // The keyboard's four zones follow the visible left-to-right shape.
+        for (let zone = 0; zone < 4; zone++) {
+            for (let sx = 0; sx < 4; sx++) {
+                const u = (zone + (sx + 0.5) / 4) / 4;
+                const x = u * this.width;
+                const i = Math.min(this._levels.length - 1, Math.floor(u * this._levels.length));
+                const halves = WAVES.map((_, k) => this._ribbonHalf(
+                    this.width, this.height, lifts, k, x, i));
+                for (let sy = 0; sy < 16; sy++) {
+                    const v = (sy + 0.5) / 16;
+                    const y = v * this.height;
+                    let opacity = 0;
+                    halves.forEach((half, k) => {
+                        if (Math.abs(y - this.height / 2) <= half)
+                            opacity += (1 - opacity) * RIBBON_ALPHAS[k];
+                    });
+                    const ink = sampleRibbonGradient(stops, axis === 'x' ? u : v);
+                    ink.forEach((value, channel) => rgb[zone][channel] += value * opacity / 64);
+                }
+            }
+            rgb[zone] = rgb[zone].map(value => Math.round(value * color.alpha));
+        }
+        return {version: 1, active, rgb};
     }
 
     // Stop burning frames while the panel is hidden (fullscreen video), and
@@ -3580,6 +3630,7 @@ class MediaModel {
         this.equalizer.range = options.spectrumRange;
         this.equalizer.playing = this.stack.anyPlaying;
         this.notifyVisibility?.();
+        this.equalizer.notifyRibbonFrame?.();
     }
 
     _readOptions() {
@@ -4110,11 +4161,12 @@ class NowPlayingButton extends PanelMenu.Button {
         const lightInk = !ink || (ink.red + ink.green + ink.blue) / 3 > 127;
         const rgb = this._artworkColor ? readableArtworkColor(this._artworkColor, lightInk) : null;
         const style = rgb ? `color: rgb(${rgb.map(value => Math.round(value * 255)).join(',')});` : null;
-        this._panelLabel.set_style(style);
-        this._controls.set_style(style);
+        this._panelLabel.set_style(null);
+        this._controls.set_style(null);
         this._model.equalizer.set_style(style);
         this._model.equalizer._artworkColor = rgb;
         this._model.equalizer.queue_repaint();
+        this._model.equalizer.notifyRibbonFrame?.();
     }
 
     // With no text and no player icon the equalizer stays, or the button would
@@ -4241,6 +4293,68 @@ class BuiltinMediaHider {
     }
 }
 
+function sampleRibbonGradient(stops, position) {
+    if (position <= stops[0][0])
+        return stops[0][1];
+    for (let i = 1; i < stops.length; i++) {
+        if (position > stops[i][0])
+            continue;
+        const [from, a] = stops[i - 1];
+        const [to, b] = stops[i];
+        const fraction = to === from ? 1 : (position - from) / (to - from);
+        return a.map((value, channel) => value + (b[channel] - value) * fraction);
+    }
+    return stops.at(-1)[1];
+}
+
+const RIBBON_BUS = 'org.gnome.Shell.Extensions.NowPlayingCard';
+const RIBBON_PATH = '/org/gnome/Shell/Extensions/NowPlayingCard';
+const RIBBON_IFACE = `<node><interface name="${RIBBON_BUS}">
+    <method name="GetFrame"><arg type="s" direction="out"/></method>
+    <signal name="Frame"><arg type="s"/></signal>
+</interface></node>`;
+
+class RibbonBridge {
+    constructor() {
+        this._icon = null;
+        this._export = Gio.DBusExportedObject.wrapJSObject(RIBBON_IFACE, this);
+        this._export.export(Gio.DBus.session, RIBBON_PATH);
+        this._owner = Gio.bus_own_name_on_connection(Gio.DBus.session, RIBBON_BUS,
+            Gio.BusNameOwnerFlags.NONE, null, null);
+    }
+
+    GetFrame() {
+        return JSON.stringify(this._icon?.ribbonFrame() ?? {
+            version: 1, active: false, rgb: [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+        });
+    }
+
+    publish() {
+        const frame = this.GetFrame();
+        const now = GLib.get_monotonic_time();
+        if (frame === this._lastFrame && now - (this._lastSent ?? 0) < 250000)
+            return;
+        this._lastFrame = frame;
+        this._lastSent = now;
+        this._export.emit_signal('Frame', new GLib.Variant('(s)', [frame]));
+    }
+
+    setIcon(icon) {
+        if (this._icon)
+            this._icon.notifyRibbonFrame = null;
+        this._icon = icon;
+        if (icon)
+            icon.notifyRibbonFrame = () => this.publish();
+        this.publish();
+    }
+
+    destroy() {
+        this.setIcon(null);
+        Gio.bus_unown_name(this._owner);
+        this._export.unexport();
+    }
+}
+
 export default class NowPlayingExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
@@ -4282,6 +4396,7 @@ export default class NowPlayingExtension extends Extension {
             'changed::hide-builtin-media', () => this._syncBuiltinMedia(),
             this);
 
+        this._bridge = new RibbonBridge();
         this._hider = new BuiltinMediaHider();
         this._build();
         this._syncBuiltinMedia();
@@ -4291,6 +4406,8 @@ export default class NowPlayingExtension extends Extension {
         this._settings?.disconnectObject(this);
         this._settings = null;
         this._destroyHost();
+        this._bridge?.destroy();
+        this._bridge = null;
         this._hider?.destroy();
         this._hider = null;
     }
@@ -4314,9 +4431,11 @@ export default class NowPlayingExtension extends Extension {
                 readSetting(this._settings, 'panel-index'),
                 readSetting(this._settings, 'panel-box'));
         }
+        this._bridge?.setIcon(this._host._model.equalizer);
     }
 
     _destroyHost() {
+        this._bridge?.setIcon(null);
         this._host?.destroy();
         this._host = null;
     }

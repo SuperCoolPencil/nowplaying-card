@@ -155,7 +155,7 @@
       <description>Columns that follow the sound take the place of the bars in the top bar, and the bars on the card follow the sound too. It only listens while the icon is animated. Turned off, the bars come back in their own style.</description>
     </key>
     <key name="spectrum-shape" enum="org.gnome.shell.extensions.nowplaying.spectrum-shape">
-      <default>'waves'</default>
+      <default>'ribbon'</default>
       <summary>Spectrum shape</summary>
       <description>Columns of separate segments, solid columns, solid columns that grow both ways from the middle, the hills of the icon rising with the sound, or the same hills folded over a line through the middle.</description>
     </key>
