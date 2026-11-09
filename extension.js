@@ -4021,9 +4021,11 @@ class NowPlayingButton extends PanelMenu.Button {
 
     _syncAppIcon() {
         const player = this._model.activePlayer;
-        this._appIcon.gicon = player
+        const card = this._model.stack._cards.get(player);
+        const artwork = card?._hasArtwork ? card._artwork?.gicon : null;
+        this._appIcon.gicon = artwork ?? (player
             ? player.app?.get_icon() ?? new Gio.ThemedIcon({name: 'audio-x-generic-symbolic'})
-            : null;
+            : null);
         this._appIcon.visible = readSetting(this._settings, 'panel-app-icon') &&
             !!this._appIcon.gicon;
     }
@@ -4035,7 +4037,10 @@ class NowPlayingButton extends PanelMenu.Button {
             this._colorCover?.disconnectObject(this);
             this._colorCover = cover;
             cover?.connectObject(
-                'notify::gicon', () => this._syncArtworkColor(),
+                'notify::gicon', () => {
+                    this._syncAppIcon();
+                    this._syncArtworkColor();
+                },
                 'destroy', () => this._colorCover = null, this);
         }
         // Reuse the card's loaded artwork, including remote and inline images.

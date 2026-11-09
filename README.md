@@ -177,7 +177,8 @@ microphone indicator shows while the analyzer listens.
 
 ## Preferences
 
-This fork defaults to player icon → title - artist → play/pause → next → waves.
+This fork defaults to media thumbnail → title - artist → play/pause → next → waves.
+The top-bar thumbnail falls back to the player icon when artwork is unavailable.
 The ticker, transport buttons and waves take their color from the current track’s
 artwork thumbnail, adjusted for readability. Missing or neutral artwork uses the
 panel theme’s color.
@@ -232,7 +233,7 @@ on. With no player at all, the icon is only there with Visibility set to always.
 | Text width | Longest the panel text may get, in pixels |
 | Fixed text width | Keep that width even for a short track |
 | Icon in the panel | The equalizer next to the text, or the text alone |
-| Player icon | The icon of the app that is playing, next to the equalizer, or in its place with Icon in the panel off |
+| Media thumbnail | Current artwork in the top bar, falling back to the player icon |
 | Scrolling over the button | Nothing, switch tracks, or change volume |
 | Volume step | How many percent one notch of the wheel changes the volume by |
 | Controls in the panel | Transport buttons next to the icon |

@@ -174,8 +174,8 @@ export default class NowPlayingPreferences extends ExtensionPreferences {
         panel.add(iconRow);
 
         const appIconRow = new Adw.SwitchRow({
-            title: _('Player icon'),
-            subtitle: _('The app that is playing, next to the equalizer or in its place'),
+            title: _('Media thumbnail'),
+            subtitle: _('Current artwork, with the player icon as a fallback'),
         });
         panel.add(appIconRow);
 
