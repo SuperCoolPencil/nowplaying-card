@@ -178,6 +178,9 @@ microphone indicator shows while the analyzer listens.
 ## Preferences
 
 This fork defaults to player icon → title - artist → play/pause → next → waves.
+The ticker, transport buttons and waves take their color from the current track’s
+artwork thumbnail, adjusted for readability. Missing or neutral artwork uses the
+panel theme’s color.
 
 `gnome-extensions prefs nowplaying@epogonii.github.io`
 

@@ -990,7 +990,9 @@ class EqualizerIcon extends St.DrawingArea {
 
     _repaintWaves(cr, lightInk, height, alpha) {
         const [width] = this.get_surface_size();
-        const inks = WAVE_INKS[lightInk ? 0 : 1];
+        const inks = this._artworkColor
+            ? [0.5, 0.75, 1].map(strength => this._artworkColor.map(value => value * strength))
+            : WAVE_INKS[lightInk ? 0 : 1];
         const lifts = this._waveLifts();
 
         WAVES.forEach(([rest, swell, humps, start, reach, turns], k) => {
@@ -3633,6 +3635,52 @@ class MediaModel {
     }
 }
 
+// Prefer a saturated, visible region of artwork over its transparent padding
+// or neutral background. Quantized buckets keep small antialiased edges from
+// outvoting the main color.
+function dominantArtworkColor(pixbuf) {
+    const pixels = pixbuf.get_pixels();
+    const channels = pixbuf.get_n_channels();
+    const stride = pixbuf.get_rowstride();
+    const buckets = new Map();
+    for (let y = 0; y < pixbuf.height; y++) {
+        for (let x = 0; x < pixbuf.width; x++) {
+            const at = y * stride + x * channels;
+            const alpha = channels === 4 ? pixels[at + 3] / 255 : 1;
+            const rgb = [pixels[at], pixels[at + 1], pixels[at + 2]];
+            const high = Math.max(...rgb);
+            const saturation = high ? (high - Math.min(...rgb)) / high : 0;
+            if (alpha < 0.5 || saturation < 0.2 || high < 40)
+                continue;
+            const key = rgb.map(value => value >> 5).join(',');
+            const bucket = buckets.get(key) ?? {weight: 0, sum: [0, 0, 0]};
+            const weight = alpha * saturation;
+            bucket.weight += weight;
+            rgb.forEach((value, i) => bucket.sum[i] += value * weight);
+            buckets.set(key, bucket);
+        }
+    }
+    const best = [...buckets.values()].sort((a, b) => b.weight - a.weight)[0];
+    return best ? best.sum.map(value => value / best.weight / 255) : null;
+}
+
+function readableArtworkColor(rgb, lightInk) {
+    const luminance = color => color.reduce((sum, value, i) => {
+        const linear = value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+        return sum + linear * [0.2126, 0.7152, 0.0722][i];
+    }, 0);
+    let color = [...rgb];
+    // Keep the hue while lifting dark artwork on dark panels, or darkening
+    // bright artwork on light panels. Neutral art keeps the theme's own ink.
+    for (let i = 0; i < 30; i++) {
+        const level = luminance(color);
+        if (lightInk ? level >= 0.35 : level <= 0.16)
+            break;
+        color = color.map(value => lightInk ? value + (1 - value) * 0.1 : value * 0.9);
+    }
+    return color;
+}
+
 // Host 1: own panel button with its own popup, position set in preferences.
 const NowPlayingButton = GObject.registerClass(
 class NowPlayingButton extends PanelMenu.Button {
@@ -3642,6 +3690,10 @@ class NowPlayingButton extends PanelMenu.Button {
 
         this._settings = settings;
         this._scrollDelta = 0;
+        this._artworkColorIcon = null;
+        this._artworkColor = null;
+        this._artworkColorLoad = null;
+        this.connect('style-changed', () => this._applyArtworkColor());
 
         this._model = new MediaModel(settings, {
             keepStackVisible: true,
@@ -3926,6 +3978,7 @@ class NowPlayingButton extends PanelMenu.Button {
     _syncVisibility() {
         this._syncLabel();
         this._syncAppIcon();
+        this._syncArtworkColor();
         this._syncIcon();
         this._syncControls();
         this._syncContextMenu();
@@ -3990,6 +4043,85 @@ class NowPlayingButton extends PanelMenu.Button {
             !!this._appIcon.gicon;
     }
 
+    _syncArtworkColor() {
+        const card = this._model.stack._cards.get(this._model.activePlayer);
+        const cover = card?._cover ?? null;
+        if (cover !== this._colorCover) {
+            this._colorCover?.disconnectObject(this);
+            this._colorCover = cover;
+            cover?.connectObject(
+                'notify::gicon', () => this._syncArtworkColor(),
+                'destroy', () => this._colorCover = null, this);
+        }
+        // Reuse the card's loaded artwork, including remote and inline images.
+        // Its app-icon fallback is deliberately excluded from the palette.
+        this._loadArtworkColor(card?._hasArtwork ? card._artwork?.gicon : null);
+    }
+
+    _loadArtworkColor(icon) {
+        if ((!icon && !this._artworkColorIcon) ||
+            (icon && this._artworkColorIcon && icon.equal(this._artworkColorIcon)))
+            return;
+        const key = icon;
+        this._artworkColorIcon = key;
+        this._artworkColorLoad?.cancel();
+        this._artworkColorLoad = null;
+        this._artworkColor = null;
+        this._applyArtworkColor();
+        if (!icon || typeof icon.load_async !== 'function')
+            return;
+
+        const cancellable = new Gio.Cancellable();
+        this._artworkColorLoad = cancellable;
+        icon.load_async(32, cancellable, (source, result) => {
+            let stream;
+            try {
+                [stream] = source.load_finish(result);
+            } catch {
+                if (!cancellable.is_cancelled())
+                    this._artworkColorLoad = null;
+                return;
+            }
+            GdkPixbuf.Pixbuf.new_from_stream_at_scale_async(stream, 32, 32, true,
+                cancellable, (_source, decoded) => {
+                    try {
+                        const pixbuf = GdkPixbuf.Pixbuf.new_from_stream_finish(decoded);
+                        if (cancellable.is_cancelled() || this._artworkColorIcon !== key)
+                            return;
+                        this._artworkColorLoad = null;
+                        this._artworkColor = dominantArtworkColor(pixbuf);
+                        this._applyArtworkColor();
+                    } catch {
+                        // Unreadable artwork keeps the theme's own color.
+                        if (!cancellable.is_cancelled())
+                            this._artworkColorLoad = null;
+                    } finally {
+                        stream.close_async(GLib.PRIORITY_DEFAULT, null, (input, closed) => {
+                            try {
+                                input.close_finish(closed);
+                            } catch {
+                                // The image loader may have closed the stream.
+                            }
+                        });
+                    }
+                });
+        });
+    }
+
+    _applyArtworkColor() {
+        if (!this._panelLabel || !this._controls)
+            return;
+        const ink = this.peek_theme_node()?.get_foreground_color();
+        const lightInk = !ink || (ink.red + ink.green + ink.blue) / 3 > 127;
+        const rgb = this._artworkColor ? readableArtworkColor(this._artworkColor, lightInk) : null;
+        const style = rgb ? `color: rgb(${rgb.map(value => Math.round(value * 255)).join(',')});` : null;
+        this._panelLabel.set_style(style);
+        this._controls.set_style(style);
+        this._model.equalizer.set_style(style);
+        this._model.equalizer._artworkColor = rgb;
+        this._model.equalizer.queue_repaint();
+    }
+
     // With no text and no player icon the equalizer stays, or the button would
     // be empty. Text chosen for the spectrum goes next to it, so the spectrum
     // stays too.
@@ -4005,6 +4137,8 @@ class NowPlayingButton extends PanelMenu.Button {
     }
 
     destroy() {
+        this._artworkColorLoad?.cancel();
+        this._colorCover?.disconnectObject(this);
         this._contextMenu.destroy();
         this._model.destroy();
         super.destroy();
