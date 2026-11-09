@@ -297,8 +297,8 @@ export default class NowPlayingPreferences extends ExtensionPreferences {
         card.add(loopRow);
 
         const scrollTextRow = new Adw.SwitchRow({
-            title: _('Scroll long text'),
-            subtitle: _('Loop long text continuously like a ticker tape'),
+            title: _('Scroll panel text'),
+            subtitle: _('Loop panel text like a ticker; popup text is truncated'),
         });
         card.add(scrollTextRow);
 

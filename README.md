@@ -198,7 +198,7 @@ Four pages, in the order the window shows them.
 | Show the progress bar | Position and length of the track |
 | Show the volume slider | For players that carry a volume of their own |
 | Show shuffle and repeat | For players that support them |
-| Scroll long text | Loop long text leftward continuously, with a gap between repeats |
+| Scroll panel text | Loop long panel text leftward continuously; popup title and artist stay static with an end ellipsis |
 | Icon style | Square ends, rounded ends, or cycling colours |
 | Accent colour | The bars in the system accent colour, GNOME 47 or later; cycling colours keep their own |
 | Animate the icon | Move the equalizer bars during playback |

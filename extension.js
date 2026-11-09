@@ -1629,7 +1629,6 @@ const CARD_OPTIONS = {
     showVolume: DEFAULTS['show-volume'],
     showLoopShuffle: DEFAULTS['show-loop-shuffle'],
     sortPlayingFirst: DEFAULTS['sort-playing-first'],
-    scrollText: DEFAULTS['scroll-text'],
     animate: DEFAULTS['animate-icon'],
     frameRate: DEFAULTS['frame-rate'],
     equalizerStyle: DEFAULTS['equalizer-style'],
@@ -1978,8 +1977,9 @@ const MediaCard = GObject.registerClass({
         }
 
         this._times.visible = !compact;
-        this._title.scroll = options.scrollText;
-        this._subtitle.scroll = options.scrollText;
+        // Popup text stays still; long labels use their end ellipsis.
+        this._title.scroll = false;
+        this._subtitle.scroll = false;
 
         // No room for columns here, so these bars follow the sound instead.
         this._equalizer.visible = !compact;
@@ -3605,7 +3605,6 @@ class MediaModel {
             showVolume: readSetting(this._settings, 'show-volume'),
             showLoopShuffle: readSetting(this._settings, 'show-loop-shuffle'),
             sortPlayingFirst: readSetting(this._settings, 'sort-playing-first'),
-            scrollText: readSetting(this._settings, 'scroll-text'),
             animate: readSetting(this._settings, 'animate-icon'),
             frameRate: readSetting(this._settings, 'frame-rate'),
             equalizerStyle: readSetting(this._settings, 'equalizer-style'),
