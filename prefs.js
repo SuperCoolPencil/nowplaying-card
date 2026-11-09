@@ -298,7 +298,7 @@ export default class NowPlayingPreferences extends ExtensionPreferences {
 
         const scrollTextRow = new Adw.SwitchRow({
             title: _('Scroll long text'),
-            subtitle: _('Move a title sideways instead of cutting it off'),
+            subtitle: _('Loop long text continuously like a ticker tape'),
         });
         card.add(scrollTextRow);
 
