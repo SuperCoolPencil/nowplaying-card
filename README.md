@@ -286,3 +286,32 @@ The same links sit on the About page of the extension's preferences.
 ## License
 
 GPL-2.0-or-later, see [LICENSE](LICENSE).
+
+## Local development preview
+
+On GNOME 49 or newer, run:
+
+```sh
+bash tools/nested/run-nested.sh
+```
+
+This opens a GNOME Devkit window with this extension and a demo player carrying
+an intentionally long title. Saving extension JavaScript, the base stylesheet,
+metadata, schemas or icons automatically restarts the preview. Close the window
+or press Ctrl+C in the terminal to stop it. The first start may open the overview;
+press Super inside the preview to see the panel, then click its media indicator
+for the card.
+
+The preview uses its own settings, installed files and session bus under `.dev/`;
+it does not install changes into the desktop session. On Ubuntu, the preview
+window helper is supplied by `mutter-dev-bin`. If installing it system-wide is
+not convenient, unpack it locally before starting:
+
+```sh
+mkdir -p .dev/packages
+(cd .dev/packages && apt-get download mutter-dev-bin)
+dpkg-deb -x .dev/packages/mutter-dev-bin_*.deb .dev/helper
+```
+
+Use `bash tools/install-local.sh` when ready to install the changes into the
+regular desktop. That desktop still needs a new shell session to load new code.
