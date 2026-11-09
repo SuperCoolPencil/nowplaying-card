@@ -275,13 +275,13 @@
 }
 
 .np-panel-box {
-    spacing: 4px;
+    spacing: 6px;
 }
 
 /* Transport in the panel: flat, tight, marked only under the pointer. Smaller
    than a status icon on purpose, so three of them read as one group. */
 .np-panel-controls {
-    spacing: 0;
+    spacing: 2px;
 }
 
 .np-panel-control {
